@@ -436,7 +436,7 @@
 	function xa_filter_by_value( $a, $va, $vf = 0 )
 	{
 		// Build an array of keys we will remove
-		$t = xa_extract_by_value( $a, $va, function() { return 1; } );
+		$t = xa_extract_by_value( $a, $va );
 
 		// Build the desired array
 		$r = array();

@@ -138,7 +138,7 @@
 		@param [in] $d		Default value
 		@param [in] $f		Optional encoding function
 	*/
-	function xa( &$a, $k, $d = '', $f = 0 )
+	function xa( $a, $k, $d = '', $f = 0 )
 	{
 		$v = ( is_array( $a ) && isset( $a[ $k ] ) ) ? $a[ $k ] : $d;
 		return $f ? call_user_func( $f, $v ) : $v;
@@ -208,6 +208,17 @@
 			if ( !xa_sz( $a, $v ) )
 				return false;
 		return true;
+	}
+
+	/** Returns non-zero if $k in $a is zero
+	
+		@param [in] $a		Array
+		@param [in] $k		Key in array, or array of keys to check
+
+	*/
+	function xa_z( $a, $k = null )
+	{	
+		return !xa_nz( $a, $k ) ? true : false; 
 	}
 
 	/** Check for associative array
@@ -323,7 +334,7 @@
 		@endcode
 		
 		@return String with substituted values
-	 */
+	*/
 	function xa_sub( $a, $tmpl, $kf = 0, $vf = 0, $pre = '$' )
 	{
 		if ( !xa_isAssoc( $a ) || !count( $a ) )
@@ -344,7 +355,7 @@
 		@param [in]	$def	default value to add if non exist
 
 		@return Array containing extracted keys
-	 */
+	*/
 	function xa_extract( $a, $ka, $vf = 0, $def = null )
 	{
 		if ( !xa_isAssoc( $a ) || !count( $a ) )
@@ -372,7 +383,7 @@
 		@param [in]	$vf		optional function to encode value
 
 		@return Array containing all but filtered keys
-	 */
+	*/
 	function xa_filter( $a, $ka, $vf = 0 )
 	{
 		if ( !xa_isAssoc( $a ) || !count( $a ) )
@@ -404,7 +415,7 @@
 		@param [in]	$vf		optional function to encode value
 
 		@return Array containing all but filtered keys
-	 */
+	*/
 	function xa_extract_by_value( $a, $va, $vf = 0 )
 	{
 		if ( !xa_isAssoc( $a ) || !count( $a ) )
@@ -432,7 +443,7 @@
 		@param [in]	$vf		optional function to encode value
 
 		@return Array containing all but filtered keys
-	 */
+	*/
 	function xa_filter_by_value( $a, $va, $vf = 0 )
 	{
 		// Build an array of keys we will remove
@@ -447,6 +458,30 @@
 		return $r;
 	}
 
+	/** Merge two arrays with an optional recursive flag
+	
+		@param $a1		array to be merged into
+		@param $a2		merging array
+		@param $r		recursive flag
+	*/
+	function xa_merge( $a1, $a2, $r = true )
+	{
+		// Ensure two valid arrays
+		$a = ( is_array( $a1 ) ) ? $a1 : array();
+		if ( !is_array( $a2 ) ) 
+			return $a;
+
+		// Merge the arrays
+		foreach ( $a2 as $k => $v )
+			if ( $r && is_array( xa( $a1, $k ) ) && is_array( $v ) )
+				$a[ $k ] = xa_merge( $a1[ $k ], $v , true );
+			else 
+				$a[ $k ] = $v;
+
+		return $a;
+	}
+
+
 //------------------------------------------------------------------
 // include
 //------------------------------------------------------------------
@@ -459,12 +494,11 @@
 		@param [in] $k		Parameter to retrieve
 		@param [in] $d		Default value to return if the key does 
 							not exist
-		
+		@param [in] $f		Optional encoding function
 	*/
-	function xi_p( $k, $d = '' ) 
-	{ 
-		global $g_xi_incparams;
-		return ( isset( $g_xi_incparams[ $k ] ) ) ? $g_xi_incparams[ $k ] : $d; 
+	function xi( $k, $d = '', $f = 0 ) 
+	{ 	global $g_xi_incparams;
+		return xa( $g_xi_incparams, $k, $d, $f );
 	}
 
 	/// Returns the entire page parameter array

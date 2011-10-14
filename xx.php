@@ -99,7 +99,7 @@
 	{	
 		if ( !is_string( $s ) || !strlen( $s ) )
 			return $def;
-		return str_replace( $sr, $sf ? call_user_func( $sf, $s ) : $s, $tmpl );
+		return str_replace( $sr, $sf ? xf_call( $sf, $s ) : $s, $tmpl );
 	}
 
 	/** Limits the maximum length of a string
@@ -117,6 +117,36 @@
 			$trail = "";
 
 		return substr( $s, 0, $max - strlen( $trail ) ) . $trail;
+	}
+
+
+//------------------------------------------------------------------
+// Functions
+//------------------------------------------------------------------
+
+	/** Calls function or function array $f with optional arguments
+
+		@param [in]	$f		a function or array of functions
+		@param [in]	...		arguments to $f
+
+		@return Result of function call(s)
+	*/
+	function xf_call( $f )
+	{
+		// Get parameters
+		$a = func_get_args(); array_shift( $a );
+		if ( !count( $a ) ) 
+			return null;
+
+		// Single function
+		if ( !is_array( $f ) )
+			return is_callable( $f ) ? call_user_func_array( $f, $a ) : $a[ 0 ];
+
+		// Function array
+		foreach( $f as $v )
+			$a = is_callable( $v ) ? ( is_array( $a ) ? call_user_func_array( $v, $a ) : call_user_func( $v, $a ) ) : $a[ 0 ];
+
+		return $a;
 	}
 
 //------------------------------------------------------------------
@@ -141,7 +171,7 @@
 	function xa( $a, $k, $d = '', $f = 0 )
 	{
 		$v = ( is_array( $a ) && isset( $a[ $k ] ) ) ? $a[ $k ] : $d;
-		return $f ? call_user_func( $f, $v ) : $v;
+		return $f ? xf_call( $f, $v ) : $v;
 	}
 
 	/** Returns value of $k2 in $k1 in array $a or $d if it doesn't exist
@@ -299,13 +329,13 @@
 			foreach( $a as $k=>$v ) 
 				$def .= ( $i++ ? $join : '' ) 
 						. str_replace( $kr, 
-									   $kf ? call_user_func( $kf, $k ) : $k, 
-									   str_replace( $vr, $vf ? call_user_func( $vf, $v ) : $v, $tmpl ) );
+									   $kf ? xf_call( $kf, $k ) : $k, 
+									   str_replace( $vr, $vf ? xf_call( $vf, $v ) : $v, $tmpl ) );
 
 		else
 			foreach( $a as $v ) 
 				$def .= ( $i++ ? $join : '' ) 
-						. str_replace( $vr, $vf ? call_user_func( $vf, $v ) : $v, $tmpl );
+						. str_replace( $vr, $vf ? xf_call( $vf, $v ) : $v, $tmpl );
 
 		return $def;
 	}
@@ -354,8 +384,8 @@
 			return $tmpl;
 
 		foreach( $a as $k=>$v ) 
-			$tmpl = str_replace( $pre.( $kf ? call_user_func( $kf, $k ) : $k ), 
-								 $vf ? call_user_func( $vf, $v ) : $v, 
+			$tmpl = str_replace( $pre.( $kf ? xf_call( $kf, $k ) : $k ), 
+								 $vf ? xf_call( $vf, $v ) : $v, 
 								 $tmpl );
 		return $tmpl;
 	}
@@ -382,7 +412,7 @@
 		$r = array();
 		foreach( $ka as $k )
 			if ( isset( $a[ $k ] ) )
-				$r[ $k ] = $vf ? call_user_func( $vf, $a[ $k ] ) : $a[ $k ];
+				$r[ $k ] = $vf ? ( xf_call( $vf, $a[ $k ] ) ) : $a[ $k ];
 			else if ( $def !== null )
 				$r[ $k ] = $def;
 
@@ -416,7 +446,7 @@
 		$r = array();
 		foreach( $a as $k => $v )
 			if ( !isset( $ka[ $k ] ) )
-				$r[ $k ] = $vf ? call_user_func( $vf, $v ) : $v;
+				$r[ $k ] = $vf ? xf_call( $vf, $v ) : $v;
 
 		return $r;
 	}
@@ -438,13 +468,13 @@
 		if ( !is_array( $va ) )
 		{	foreach( $a as $k => $v )
 				if ( $va == $v )
-					$r[ $k ] = $vf ? call_user_func( $vf, $v ) : $v;
+					$r[ $k ] = $vf ? xf_call( $vf, $v ) : $v;
 		} // end if
 		else
 			foreach( $a as $k => $v )
 				foreach( $va as $vm )
 					if ( $vm == $v )
-						$r[ $k ] = $vf ? call_user_func( $vf, $v ) : $v;
+						$r[ $k ] = $vf ? xf_call( $vf, $v ) : $v;
 
 		return $r;
 	}
@@ -466,7 +496,7 @@
 		$r = array();
 		foreach( $a as $k => $v )
 			if ( !isset( $t[ $k ] ) )
-				$r[ $k ] = $vf ? call_user_func( $vf, $v ) : $v;
+				$r[ $k ] = $vf ? xf_call( $vf, $v ) : $v;
 
 		return $r;
 	}
@@ -780,7 +810,7 @@
 			return '';
 		
 		return 'INSERT INTO `' 
-				. ( $esc ? call_user_func( $esc, $table ) : $table ) 
+				. ( $esc ? xf_call( $esc, $table ) : $table ) 
 				. '` ('
 				. xa_join( $a, '`$k`', ',', $esc )
 				. ') VALUES (' 

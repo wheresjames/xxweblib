@@ -144,6 +144,19 @@
 		return $f ? call_user_func( $f, $v ) : $v;
 	}
 
+	/** Returns value of $k2 in $k1 in array $a or $d if it doesn't exist
+	
+		@param [in] $a		Array
+		@param [in] $k1		Key in array $a
+		@param [in] $k2		Key in array $k1
+		@param [in] $d		Default value
+		@param [in] $f		Optional encoding function
+	*/
+	function xaa( $a, $k1, $k2, $d = '', $f = 0 )
+	{
+		return xa( xa( $a, $k1 ), $k2, $d, $f );
+	}
+
 	/** Returns value of $k in array $a or $d if it doesn't exist html encoded
 	
 		@param [in] $a		Array
@@ -489,7 +502,7 @@
 	/// Global variable holding current page parameters
 	static $g_xi_incparams = array();
 
-	/** Retrieves the specified value fromt the current page parameters
+	/** Retrieves the specified value from the current page parameters
 		
 		@param [in] $k		Parameter to retrieve
 		@param [in] $d		Default value to return if the key does 
@@ -499,6 +512,19 @@
 	function xi( $k, $d = '', $f = 0 ) 
 	{ 	global $g_xi_incparams;
 		return xa( $g_xi_incparams, $k, $d, $f );
+	}
+
+	/** Retrieves the specified value from an array in the current page parameters
+		
+		@param [in] $k1		Parameter to retrieve
+		@param [in] $k2		Key in parameter $k1 to retrieve
+		@param [in] $d		Default value to return if the key does 
+							not exist
+		@param [in] $f		Optional encoding function
+	*/
+	function xii( $k1, $k2, $d = '', $f = 0 ) 
+	{
+		return xa( xi( $k1 ), $k2, $d, $f ); 
 	}
 
 	/// Returns the entire page parameter array

@@ -143,8 +143,9 @@
 			return is_callable( $f ) ? call_user_func_array( $f, $a ) : $a[ 0 ];
 
 		// Function array
+		$i = 0;
 		foreach( $f as $v )
-			$a = is_callable( $v ) ? ( is_array( $a ) ? call_user_func_array( $v, $a ) : call_user_func( $v, $a ) ) : $a[ 0 ];
+			$a = is_callable( $v ) ? ( !$i++ ? call_user_func_array( $v, $a ) : call_user_func( $v, $a ) ) : $a[ 0 ];
 
 		return $a;
 	}

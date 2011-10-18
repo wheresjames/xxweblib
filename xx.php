@@ -139,7 +139,7 @@
 			return null;
 
 		// Single function
-		if ( !is_array( $f ) )
+		if ( !is_array( $f ) || is_callable( $f ) )
 			return is_callable( $f ) ? call_user_func_array( $f, $a ) : $a[ 0 ];
 
 		// Function array

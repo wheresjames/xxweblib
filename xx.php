@@ -298,6 +298,8 @@
 	/** Applies template to array
 		@param [in]	$a		an array
 		@param [in]	$tmpl	template to apply
+
+
 		@param [in]	$join	string used to join multiple items
 		@param [in]	$kf		optional function to encode key
 		@param [in]	$vf		optional function to encode value
@@ -317,7 +319,7 @@
 
 		@endcode
 	*/
-	function xa_join( $a, $tmpl, $join, $kf = 0, $vf = 0, $def = '', $kr = '$k', $vr = '$v' )
+	function xa_join( $a, $tmpl, $join = '', $kf = 0, $vf = 0, $def = '', $kr = '$k', $vr = '$v' )
 	{
 		if ( !is_array( $a ) || !count( $a ) )
 			return $def;
@@ -739,8 +741,8 @@
 
 		$h = xa( $_SERVER, 'SERVER_NAME' );
 		$p = $port ? $port : xa( $_SERVER, 'SERVER_PORT' );
-		$r = ( $full ? ( "$proto://$h" . ( ( 80 != $p ) ? ":$p" : "" ) ) : "" ) . $s;
 		if ( !$proto ) $proto = 'http';
+		$r = ( $full ? ( "$proto://$h" . ( ( 80 != $p ) ? ":$p" : "" ) ) : "" ) . $s;
 
 		return ( $f ? xp_make( $r, $f ) : $r ) . ( $q ? "?$q" : '' );
 	}
@@ -769,6 +771,19 @@
 
 		return "$proto://$h" . ( ( 80 != $p ) ? ":$p" : "" ) . $s . ( $q ? "?$q" : "" );
 	}
+
+//------------------------------------------------------------------
+// Numbers
+//------------------------------------------------------------------
+
+	function xn_max( $v, $min, $max )
+	{	return ( $v > $max ) ? $max : $v; }
+
+	function xn_min( $v, $min, $max )
+	{	return ( $v < $min ) ? $min : $v; }
+
+	function xn_range( $v, $min, $max )
+	{	return ( $v < $min ) ? $min : ( ( $v > $max ) ? $max : $v ); }
 
 //------------------------------------------------------------------
 // Database
@@ -818,5 +833,24 @@
 				. xa_join( $a, '"$v"', ',', $esc ) 
 				. ')';
 	}
+	
+//------------------------------------------------------------------
+// Colors
+//------------------------------------------------------------------
+	
+	function xx_scale_color( $c, $s )
+	{	return str_pad( dechex( xn_range( floor( $s * hexdec( substr( $c, 0, 2 ) ) ), 0, 255 ) ), 2, '0', STR_PAD_LEFT )
+			   . str_pad( dechex( xn_range( floor( $s * hexdec( substr( $c, 2, 2 ) ) ), 0, 255 ) ), 2, '0', STR_PAD_LEFT )
+			   . str_pad( dechex( xn_range( floor( $s * hexdec( substr( $c, 4, 2 ) ) ), 0, 255 ) ), 2, '0', STR_PAD_LEFT );
+	}
+
+	function xx_create_palette( $primary, $num, $step )
+	{	$palette = array();
+		for ( $i = -$num; $i <= $num; $i++ )
+			$palette[ $i ] = xx_scale_color( $primary, 1 + ( $i * $step ) );
+		return $palette;
+	}
+	
+	
 
 ?>

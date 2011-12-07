@@ -58,6 +58,29 @@
 		return isset( $g_xc_cfg[ $k ] ) ? $g_xc_cfg[ $k ] : $d;
 	}
 
+	/** Does template replace with settings
+		@param [in] $tmpl	Template string
+		@param [in] $kf		Optional encode function for keys
+		@param [in] $vf		Optional encode function for values
+		@param [in] $pre	Variable prefix
+	*/
+	function xc_sub( $tmpl, $kf = 0, $vf = 0, $pre = '$' )
+	{	global $g_xc_cfg;
+		return xa_sub( $g_xc_cfg, $tmpl, $kf, $vf, $pre );
+	}
+	
+	/** Does template replace with settings
+		@param [in] $file	Name of file containing template
+		@param [in] $kf		Optional encode function for keys
+		@param [in] $vf		Optional encode function for values
+		@param [in] $pre	Variable prefix
+	*/
+	function xc_file( $file, $kf = 0, $vf = 0, $pre = '$' )
+	{	global $g_xc_cfg;
+		if ( !is_file( $file ) ) return '';
+		return xa_sub( $g_xc_cfg, file_get_contents( $file ), $kf, $vf, $pre );
+	}
+	
 //------------------------------------------------------------------
 // Strings
 //------------------------------------------------------------------
@@ -119,6 +142,14 @@
 		return substr( $s, 0, $max - strlen( $trail ) ) . $trail;
 	}
 
+	/** String compare function
+		$a	- First string
+		$b	- Second string
+	*/
+	function xs_cmp_length_desc( $a, $b ) 
+	{	$al = strlen( $a ); $bl = strlen( $b );
+		 return ( $al == $bl ) ? 0 : ( $al < $bl ? 1 : -1 );
+	}
 
 //------------------------------------------------------------------
 // Functions
@@ -294,18 +325,50 @@
 			} // end if
 		return $a;
 	}
+	
+	/*** Applies template using function array
+		@param [in] $tmpl		Template string
+		@param [in] $a			Function array
+		
+		Example:
+		
+		@code
+			
+			$af[ '$hello' ] = function( $s ) { return $s . ' World!'; };
+			
+			echo xa_fsub( '$hello', $af, 'Hello' );
+			
+			// Output
+			> Hello World!
+			
+		@endcode		
+	*/
+	function xa_fsub( $tmpl, &$a )
+	{
+		// Get extra params
+		$p = array_slice( func_get_args(), 2 ); 
+		
+		// Must process the keys from longest to shortest
+		$ak = array_keys( $a );
+		usort( $ak, @xs_cmp_length_desc );
+		
+		// Replace tokens
+		foreach( $ak as $k )
+		{	$v = $a[ $k ];
+			$tmpl = str_replace( $k, is_callable( $v ) ? call_user_func_array( $v, $p ) : $v, $tmpl );
+		} // end foreach
+		
+		return $tmpl;
+	}
 
 	/** Applies template to array
 		@param [in]	$a		an array
 		@param [in]	$tmpl	template to apply
-
-
 		@param [in]	$join	string used to join multiple items
 		@param [in]	$kf		optional function to encode key
 		@param [in]	$vf		optional function to encode value
-		@param [in]	$def	default value to return
-		@param [in]	$kr		string in template to replace with key
-		@param [in]	$vr		string in template to replace with value
+		@param [in]	$af		optional custom replace functions
+							function( $k, $v, $i, $kf, $kv )
 		
 		Examples:
 		
@@ -319,28 +382,37 @@
 
 		@endcode
 	*/
-	function xa_join( $a, $tmpl, $join = '', $kf = 0, $vf = 0, $def = '', $kr = '$k', $vr = '$v' )
+	function xa_join( $a, $tmpl, $join = '', $kf = null, $vf = null, $af = array() )
 	{
 		if ( !is_array( $a ) || !count( $a ) )
 			return $def;
 
-		$i = 0; 
-		if ( $kf && !$vf ) 
-			$vf = $kf;
+		if ( $kf && null === $vf )
+			$vf = $kf;				
 
+		// Default functions
+		if ( xa_z( $af, '$v' ) ) 
+			$af[ '$v' ] = create_function( '$k, $v, $i, $kf, $vf',
+										   'return $vf ? xf_call( $vf, $v ) : $v;' );
+		if ( xa_z( $af, '$k' ) ) 
+			$af[ '$k' ] = create_function( '$k, $v, $i, $kf, $vf',
+						  				   'return $kf ? xf_call( $kf, $k ) : $k;' );
+		if ( xa_z( $af, '$i' ) ) 
+			$af[ '$i' ] = create_function( '$k, $v, $i',
+										   'return $i;' );
+
+		// Do substitiution
+		$i = 0; $ret = '';
 		if ( xa_isAssoc( $a ) )
 			foreach( $a as $k=>$v ) 
-				$def .= ( $i++ ? $join : '' ) 
-						. str_replace( $kr, 
-									   $kf ? xf_call( $kf, $k ) : $k, 
-									   str_replace( $vr, $vf ? xf_call( $vf, $v ) : $v, $tmpl ) );
-
+				$ret .= ( $i++ ? $join : '' )
+						. xa_fsub( $tmpl, $af, $k, $v, $i, $kf, $vf );
 		else
 			foreach( $a as $v ) 
-				$def .= ( $i++ ? $join : '' ) 
-						. str_replace( $vr, $vf ? xf_call( $vf, $v ) : $v, $tmpl );
-
-		return $def;
+				$ret .= ( $i++ ? $join : '' )
+						. xa_fsub( $tmpl, $af, '', $v, $i, null, $vf );
+					
+		return $ret;
 	}
 
 	/** Applies template to the specified array value
@@ -386,10 +458,18 @@
 		if ( !xa_isAssoc( $a ) || !count( $a ) )
 			return $tmpl;
 
-		foreach( $a as $k=>$v ) 
+		// Must process the keys from longest to shortest
+		$ak = array_keys( $a );
+		usort( $ak, @xs_cmp_length_desc );
+		
+		// Replace tokens
+		foreach( $ak as $k )
+		{	$v = $a[ $k ];
 			$tmpl = str_replace( $pre.( $kf ? xf_call( $kf, $k ) : $k ), 
 								 $vf ? xf_call( $vf, $v ) : $v, 
 								 $tmpl );
+		} // end foreach
+
 		return $tmpl;
 	}
 
@@ -688,6 +768,7 @@
 	}
 
 	/** Returns a path suitable for indexing
+		@param $root			root path
 		@param $token			token for building the path
 		@param $block_size		max directory characters
 		@param $depth			max directory depth
@@ -711,6 +792,63 @@
 
 		return xp_make( $root, xp_make( $path, $token ) );
 	}
+
+	/** Returns the contents of the specified directory in an array
+		@param $dir		- The directory path
+		@param $full	- non-zero for full paths
+	*/
+	function xp_dir( $dir, $full = false )
+	{	
+		$a = array();
+		$h = opendir( $dir );
+		if ( !$h ) return $a;
+		
+		// Read in directory contents
+		while ( false !== ( $f = readdir( $h ) ) )
+			if ( '.' != $f && '..' != $f )
+				$a[] = $full ? xp_make( $dir, $f ) : $f;
+				
+		closedir( $h );
+		
+		return $a;
+	}
+
+	/** Returns the contents of the specified directory in an array
+		@param $dir		- The directory path
+		@param $full	- non-zero for full paths
+		@param $files	- non-zero to include files
+		@param $dirs	- non-zero to include directories
+		@param $a		- Array to merge
+	*/
+	function xp_rdir( $dir, $full = false, $files = true, $dirs = true, $a = array() )
+	{	
+		$h = opendir( $dir );
+		if ( !$h ) return $a;
+		
+		// Read in files
+		while ( false !== ( $f = readdir( $h ) ) )
+			if ( '.' != $f && '..' != $f )
+			{
+				// Full path
+				$p = xp_make( $dir, $f );
+				
+				// Is it a directory?
+				if ( is_dir( $p ) )
+				{	if ( $dirs ) $a[] = $full ? xp_make( $dir, $f ) : $f;
+					$a = xp_rdir( $p, $full, $files, $dirs, $a );
+				} // end if
+
+				// Must be a file
+				else if ( $files )
+					$a[] = $full ? xp_make( $dir, $f ) : $f;
+
+			} // end if
+				
+		closedir( $h );
+		
+		return $a;
+	}
+	
 
 	/** Returns the root disk path
 		
@@ -850,7 +988,5 @@
 			$palette[ $i ] = xx_scale_color( $primary, 1 + ( $i * $step ) );
 		return $palette;
 	}
-	
-	
 
 ?>

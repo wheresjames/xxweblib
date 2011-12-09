@@ -40,6 +40,12 @@
 	// Global config array
 	static $g_xc_cfg = array();
 	
+	/// Returns the configuration array
+	function xc()
+	{	global $g_xc_cfg;
+		return $g_xc_cfg;
+	}
+	
 	/** Writes a value into the global config array
 		@param [in] $k		Key value
 		@param [in] $v		Value to save into the array

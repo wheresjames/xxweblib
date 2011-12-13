@@ -40,10 +40,14 @@
 	// Global config array
 	static $g_xc_cfg = array();
 	
-	/// Returns the configuration array
-	function xc()
+	/** Returns the specified configuration value
+		@param [in] $k		Key value to read
+		@param [in] $d		Default value to use if $k is not found
+	*/
+	function xc( $k = null, $d = '')
 	{	global $g_xc_cfg;
-		return $g_xc_cfg;
+		if ( null === $k ) return $g_xc_cfg;
+		return xak( $g_xc_cfg, $k, $d );
 	}
 	
 	/** Writes a value into the global config array
@@ -55,6 +59,15 @@
 		$g_xc_cfg[ $k ] = $v;
 	}
 
+	/** Writes a value into the global config array
+		@param [in] $k		Key value, can be multi dimensional
+		@param [in] $v		Value to save into the array
+	*/
+	function xc_kset( $k, $v )
+	{	global $g_xc_cfg;
+		xak_set( $g_xc_cfg, $k, $v );
+	}
+	
 	/** Reads a value from the global config array
 		@param [in] $k		Key value to read
 		@param [in] $d		Default value to use if $k is not found
@@ -62,6 +75,15 @@
 	function xc_get( $k, $d = '' )
 	{	global $g_xc_cfg;
 		return isset( $g_xc_cfg[ $k ] ) ? $g_xc_cfg[ $k ] : $d;
+	}
+
+	/** Reads a value from the global config array
+		@param [in] $k		Key value to read, can be multi dimensional
+		@param [in] $d		Default value to use if $k is not found
+	*/
+	function xc_kget( $k, $d = '' )
+	{	global $g_xc_cfg;
+		return xak( $g_xc_cfg, $k, $d );
 	}
 
 	/** Does template replace with settings
@@ -86,6 +108,22 @@
 		if ( !is_file( $file ) ) return '';
 		return xa_sub( $g_xc_cfg, file_get_contents( $file ), $kf, $vf, $pre );
 	}
+	
+	/** Does template replace with settings
+
+		@param [in] $k		Root key
+		@param [in] $n		Number of palette entries
+		@param [in] $step	Palette step size
+		@param [in] ...		Palette colors
+
+	*/
+	function xc_palette( $k, $n, $step )
+	{	global $g_xc_cfg;
+		$palette = xx_create_palette( array_slice( func_get_args(), 3 ), 10, 0.1 );
+		if ( strlen( $k ) ) xc_set( $k, $palette );		
+		return $palette;
+	}
+	
 	
 //------------------------------------------------------------------
 // Strings
@@ -210,6 +248,43 @@
 	{
 		$v = ( is_array( $a ) && isset( $a[ $k ] ) ) ? $a[ $k ] : $d;
 		return $f ? xf_call( $f, $v ) : $v;
+	}
+
+	/** Returns value of $k in array $a or $d if it doesn't exist
+	
+		@param [in] $a		Array
+		@param [in] $k		Key in array, can be multidimensional
+		@param [in] $d		Default value
+		@param [in] $f		Optional encoding function
+		$param [in] $s		Key separator
+	*/
+	function xak( $a, $k, $d = '', $f = 0, $s = '.' )
+	{
+		$ka = explode( $s, $k );
+		foreach( $ka as $kk )
+			if ( isset( $a[ $kk ] ) )
+				$a = $a[ $kk ];
+			else
+				return $d;
+		return $f ? xf_call( $f, $a ) : $a;
+	}
+
+	/** Sets value of $k in array $a or $d if it doesn't exist
+	
+		@param [in] $a		Array
+		@param [in] $k		Key in array, can be multidimensional
+		@param [in] $d		Default value
+		@param [in] $f		Optional encoding function
+		$param [in] $s		Key separator
+	*/
+	function xak_set( &$a, $k, $v, $f = 0, $s = '.' )
+	{	$ka = explode( $s, $k );
+		foreach( $ka as $kk )
+		{	if ( !isset( $a[ $kk ] ) )
+				$a[ $kk ] = array();
+			$a = $a[ $kk ];
+		} // end foreach
+		return $a = ( $f ? xf_call( $f, $v ) : $v );
 	}
 
 	/** Returns value of $k2 in $k1 in array $a or $d if it doesn't exist
@@ -436,6 +511,7 @@
 		return xs_tmpl( $a[ $k ], $tmpl, $vf, $def, $vr );
 	}
 	
+
 	/** Substitute array values in template
 
 		@param [in]	$a		an array
@@ -461,7 +537,7 @@
 	*/
 	function xa_sub( $a, $tmpl, $kf = 0, $vf = 0, $pre = '$' )
 	{
-		if ( !xa_isAssoc( $a ) || !count( $a ) )
+		if ( !is_array( $a ) || !count( $a ) )
 			return $tmpl;
 
 		// Must process the keys from longest to shortest
@@ -471,9 +547,13 @@
 		// Replace tokens
 		foreach( $ak as $k )
 		{	$v = $a[ $k ];
-			$tmpl = str_replace( $pre.( $kf ? xf_call( $kf, $k ) : $k ), 
-								 $vf ? xf_call( $vf, $v ) : $v, 
-								 $tmpl );
+			if ( !is_array( $v ) )			
+				$tmpl = str_replace( $pre.( $kf ? xf_call( $kf, $k ) : $k ), 
+									 $vf ? xf_call( $vf, $v ) : $v, 
+									 $tmpl );
+			else
+				$tmpl = xa_sub( $v, $tmpl, $kf, $vf, $pre . $k . '.' );
+			
 		} // end foreach
 
 		return $tmpl;
@@ -990,8 +1070,11 @@
 
 	function xx_create_palette( $primary, $num, $step )
 	{	$palette = array();
-		for ( $i = -$num; $i <= $num; $i++ )
-			$palette[ $i ] = xx_scale_color( $primary, 1 + ( $i * $step ) );
+		if ( !is_array( $primary ) ) 
+			$primary = array( $primary );
+		foreach( $primary as $k=>$v )
+			for ( $i = -$num; $i <= $num; $i++ )
+				$palette[ $k ][ $i ] = '#' . xx_scale_color( $v, 1 + ( $i * $step ) );
 		return $palette;
 	}
 

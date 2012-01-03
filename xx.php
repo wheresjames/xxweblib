@@ -99,12 +99,18 @@
 	
 	/** Does template replace with settings
 		@param [in] $file	Name of file containing template
+							Or for a safety check, specify
+							array( '<root>', '<filename>' )
 		@param [in] $kf		Optional encode function for keys
 		@param [in] $vf		Optional encode function for values
 		@param [in] $pre	Variable prefix
 	*/
 	function xc_file( $file, $kf = 0, $vf = 0, $pre = '$' )
 	{	global $g_xc_cfg;
+		if ( is_array( $file ) )
+		{	if ( !xp_isfile( $file[ 0 ], $file[ 1 ] ) ) return '';
+			$file = xp_make( $file[ 0 ], $file[ 1 ] );
+		} // end if
 		if ( !is_file( $file ) ) return '';
 		return xa_sub( $g_xc_cfg, file_get_contents( $file ), $kf, $vf, $pre );
 	}
@@ -745,6 +751,18 @@
 	function xi_include( $f ) 
 	{
 		global $g_xi_incparams;
+		
+		// Safety check?
+		if ( is_array( $f ) )
+		{
+			// Ensure valid file in specified directory
+			if ( !xp_isfile( $f[ 0 ], $f[ 1 ] ) )
+				return '';
+			
+			// Build full path
+			$f = xp_make( $f[ 0 ], $f[ 1 ] );
+		
+		} // end if
 	
 		// Save previous params
 		$old = $g_xi_incparams; 
@@ -899,6 +917,28 @@
 		closedir( $h );
 		
 		return $a;
+	}
+	
+	/** Returns non-zero if the specified file is in the specified directory
+		@param $dir		- Directory to check in
+		@param $file	- File to look for	
+	*/
+	function xp_isfile( $dir, $file, $case_sensitive = true )
+	{
+		$h = opendir( $dir );
+		if ( !$h ) return false;
+		
+		// Read in directory contents
+		$found = false;
+		while ( !$found && false !== ( $f = readdir( $h ) ) )
+			if ( '.' != $f && '..' != $f )
+				$found = $case_sensitive 
+						 ? ( !strcmp( $f, $file ) ) 
+						 : ( !strcasecmp( $f, $file ) );
+				
+		closedir( $h );
+		
+		return $found;
 	}
 
 	/** Returns the contents of the specified directory in an array

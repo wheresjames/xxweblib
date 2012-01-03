@@ -520,6 +520,8 @@
 		@param [in]	$vf		optional function to encode value
 		@param [in]	$pre	prefix that identifies replace token
 
+		@notice Consider built in str_replace()
+
 		Example:
 		
 		@code
@@ -566,21 +568,21 @@
 		@param [in]	$vf		optional function to encode value
 		@param [in]	$def	default value to add if non exist
 
+		@notice Consider built in function array_intersect_key()
+
 		@return Array containing extracted keys
 	*/
 	function xa_extract( $a, $ka, $vf = 0, $def = null )
 	{
-		if ( !xa_isAssoc( $a ) || !count( $a ) )
-			return array();
-
 		// Create array of the values we want if needed
 		if ( !is_array( $ka ) )
 			$ka = explode( ',', $ka );
 
 		// Create an array of wanted values
 		$r = array();
+		$valid = xa_isAssoc( $a ) && count( $a );
 		foreach( $ka as $k )
-			if ( isset( $a[ $k ] ) )
+			if ( $valid && isset( $a[ $k ] ) )
 				$r[ $k ] = $vf ? ( xf_call( $vf, $a[ $k ] ) ) : $a[ $k ];
 			else if ( $def !== null )
 				$r[ $k ] = $def;

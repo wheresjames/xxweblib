@@ -1,0 +1,1 @@
+Very simple PHP framework for rapid site prototyping.  The focus is on minimal code impact, and the integration of components that did not have a framework in mind.
